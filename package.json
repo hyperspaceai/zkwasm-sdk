@@ -4,10 +4,15 @@
   "description": "Zero-Knowledge WebAssembly runtime",
   "type": "module",
   "source": "src/zkwasm.js",
-  "module": "./dist/zkwasm.esm.js",
-  "unpkg": "./dist/zkwasm.esm.js",
+  "exports": {
+    "require": "./dist/zkwasm.cjs",
+    "default": "./dist/zkwasm.modern.js"
+  },
+  "main": "./dist/zkwasm.cjs",
+  "module": "./dist/zkwasm.module.js",
+  "unpkg": "./dist/zkwasm.umd.js",
   "scripts": {
-    "build": "microbundle --format esm --workers",
+    "build": "microbundle",
     "prepublish": "npm run build"
   },
   "repository": {

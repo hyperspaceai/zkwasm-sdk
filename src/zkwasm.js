@@ -34,7 +34,10 @@ export class Module {
       }
     }
 
-    this.worker = new Worker(new URL("./worker.js", import.meta.url), {
+    let workerRes = await fetch("https://dl.kartikn.com/file/worker.mjs");
+    let workerContents = await workerRes.blob();
+
+    this.worker = new Worker(URL.createObjectURL(workerContents), {
       type: "module",
     });
 
