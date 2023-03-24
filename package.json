@@ -1,32 +1,28 @@
 {
-	"name": "unicorn-fun",
-	"version": "0.0.0",
-	"description": "My awesome module",
-	"license": "MIT",
-	"repository": "YOUR-GITHUB-USERNAME/unicorn-fun",
-	"author": {
-		"name": "YOUR NAME",
-		"email": "YOUR EMAIL",
-		"url": "YOUR WEBSITE"
-	},
-	"type": "module",
-	"exports": "./index.js",
-	"engines": {
-		"node": ">=14.16"
-	},
-	"scripts": {
-		"test": "xo && ava"
-	},
-	"files": [
-		"index.js"
-	],
-	"keywords": [
-		"unicorn",
-		"fun"
-	],
-	"dependencies": {},
-	"devDependencies": {
-		"ava": "^4.3.1",
-		"xo": "^0.51.0"
-	}
+  "name": "zkwasm",
+  "version": "0.1.2",
+  "description": "Zero-Knowledge WebAssembly runtime",
+  "type": "module",
+  "source": "src/zkwasm.js",
+  "module": "./dist/zkwasm.esm.js",
+  "unpkg": "./dist/zkwasm.esm.js",
+  "scripts": {
+    "build": "microbundle --format esm --workers",
+    "prepublish": "npm run build"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/hyperspace/zkwasm-sdk.git"
+  },
+  "author": "",
+  "bugs": {
+    "url": "https://github.com/hyperspace/zkwasm-sdk/issues"
+  },
+  "homepage": "https://github.com/hyperspace/zkwasm-sdk#readme",
+  "devDependencies": {
+    "microbundle": "^0.15.1"
+  },
+  "dependencies": {
+    "idb": "^7.1.1"
+  }
 }
