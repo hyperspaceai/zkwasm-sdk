@@ -5,18 +5,21 @@ This is the repository for the JavaScript SDK for zkWasm. You can use this libra
 # Example
 
 ```js
-import { Module } from 'zkwasm';
+import { Module, verify } from 'zkwasm';
 
 let wasmBinary = { ... }; // This can be acquired in any way
 let module = await Module.fromBinary(wasmBinary);
 let { result, proof } = module.invokeExport('test', [...serializedArguments]);
+
+console.log(result);
+console.log(verify(proof)); // Check if a proof is valid
 ```
 
 # Documentation
 
-The SDK is quite minimal and has only a single export, the `Module` class.
+The SDK has two exports. The `Module` class which is used to create a Wasm module and invoke exports on it, and the `verify` function which is used to verify any proofs from the SDK.
 
-## `Module`
+## `class Module`
 
 ### `constructor(binary: Uint8Array)`
 
@@ -50,6 +53,6 @@ type InvocationResult = {
 };
 ```
 
-### `async verifyProof(proof: Proof): Promise<boolean>`
+## `async function verify(proof: Proof): Promise<boolean>`
 
 Verifies a proof of execution and returns whether the provided proof is valid or not.

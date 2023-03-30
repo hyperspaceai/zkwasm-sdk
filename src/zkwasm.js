@@ -11,6 +11,67 @@ async function initDB() {
   });
 }
 
+/**
+ * @returns {Promise<Worker>}
+ */
+async function initWorker() {
+  let workerRes = await fetch("https://dl.kartikn.com/file/worker.mjs");
+  let workerContents = await workerRes.blob();
+
+  let worker = new Worker(URL.createObjectURL(workerContents), {
+    type: "module",
+  });
+
+  await new Promise((res) => {
+    worker.addEventListener("message", (e) => {
+      if (e.data.operation === "initialized") res();
+    });
+  });
+
+  worker.addEventListener("message", async function (e) {
+    const { responseBuffer, operation, args } = e.data;
+    const i32 = new Int32Array(responseBuffer);
+
+    switch (operation) {
+      case "state_get": {
+        const db = await initDB();
+        const value = await db.get(STORE_NAME, args[0]);
+        if (value !== undefined && !(value instanceof Uint8Array)) {
+          throw "expect values in IndexedDB to be Uint8Array";
+        }
+
+        i32[0] = value.byteLength;
+        const buffer = new Uint8Array(i32.buffer);
+        value.forEach((byte, i) => {
+          buffer[i + 4] = byte;
+        });
+
+        break;
+      }
+      case "state_set": {
+        const db = await initDB();
+        await db.put(STORE_NAME, args[1], args[0]);
+        break;
+      }
+      case "log": {
+        console.log(args[0]);
+        return;
+      }
+      case "result":
+        // console.log("result: ", args);
+        return;
+    }
+
+    Atomics.notify(i32, 0);
+  });
+
+  return worker;
+}
+
+/**
+ * @typedef {{bytes: Uint8Array, inputs: Uint8Array}} Proof
+ */
+
 export class Module {
   /**
    * Creates a new uninitialized `Module` object.
@@ -38,55 +99,7 @@ export class Module {
       }
     }
 
-    let workerRes = await fetch("https://dl.kartikn.com/file/worker.mjs");
-    let workerContents = await workerRes.blob();
-
-    this.worker = new Worker(URL.createObjectURL(workerContents), {
-      type: "module",
-    });
-
-    await new Promise((res) => {
-      this.worker.addEventListener("message", (e) => {
-        if (e.data.operation === "initialized") res();
-      });
-    });
-
-    this.worker.addEventListener("message", async function (e) {
-      const { responseBuffer, operation, args } = e.data;
-      const i32 = new Int32Array(responseBuffer);
-
-      switch (operation) {
-        case "state_get": {
-          const db = await initDB();
-          const value = await db.get(STORE_NAME, args[0]);
-          if (value !== undefined && !(value instanceof Uint8Array)) {
-            throw "expect values in IndexedDB to be Uint8Array";
-          }
-
-          i32[0] = value.byteLength;
-          const buffer = new Uint8Array(i32.buffer);
-          value.forEach((byte, i) => {
-            buffer[i + 4] = byte;
-          });
-
-          break;
-        }
-        case "state_set": {
-          const db = await initDB();
-          await db.put(STORE_NAME, args[1], args[0]);
-          break;
-        }
-        case "log": {
-          console.log(args[0]);
-          return;
-        }
-        case "result":
-          // console.log("result: ", args);
-          return;
-      }
-
-      Atomics.notify(i32, 0);
-    });
+    this.worker = await initWorker();
 
     this.worker.postMessage({ action: "init_module", args: [this.binary] });
     console.log(this.worker, "posted message");
@@ -121,7 +134,6 @@ export class Module {
   }
 
   /**
-   * @typedef {{bytes: Uint8Array, inputs: Uint8Array}} Proof
    * @typedef {{proof: Proof, result: Uint8Array}} InvocationResult
    */
 
@@ -162,21 +174,22 @@ export class Module {
       });
     });
   }
+}
 
-  /**
-   * Verifies a proof, returns whether it's valid or not.
-   * @param {Proof} proof
-   * @returns {Promise<boolean>}
-   */
-  async verifyProof(proof) {
-    this.worker.postMessage({ action: "verify", args: [proof] });
+/**
+ * Verifies a proof, returns whether it's valid or not.
+ * @param {Proof} proof
+ * @returns {Promise<boolean>}
+ */
+export async function verify(proof) {
+  let worker = await initWorker();
+  worker.postMessage({ action: "verify", args: [proof] });
 
-    return new Promise((res) => {
-      this.worker.addEventListener("message", (e) => {
-        if (e.data.operation === "result" && e.data.action === "verify") {
-          res(e.data.result.result);
-        }
-      });
+  return new Promise((res) => {
+    worker.addEventListener("message", (e) => {
+      if (e.data.operation === "result" && e.data.action === "verify") {
+        res(e.data.result.result);
+      }
     });
-  }
+  });
 }
