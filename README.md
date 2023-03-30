@@ -50,6 +50,6 @@ type InvocationResult = {
 };
 ```
 
-### `static async verifyProof(proof: Proof): Promise<boolean>`
+### `async verifyProof(proof: Proof): Promise<boolean>`
 
 Verifies a proof of execution and returns whether the provided proof is valid or not.
