@@ -1,6 +1,6 @@
 {
   "name": "zkwasm",
-  "version": "0.1.4",
+  "version": "0.1.6",
   "description": "Zero-Knowledge WebAssembly runtime",
   "type": "module",
   "source": "src/zkwasm.js",
@@ -17,13 +17,12 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/hyperspace/zkwasm-sdk.git"
+    "url": "git+https://github.com/hyperspaceinc/zkwasm-sdk.git"
   },
-  "author": "",
   "bugs": {
-    "url": "https://github.com/hyperspace/zkwasm-sdk/issues"
+    "url": "https://github.com/hyperspaceinc/zkwasm-sdk/issues"
   },
-  "homepage": "https://github.com/hyperspace/zkwasm-sdk#readme",
+  "homepage": "https://github.com/hyperspaceinc/zkwasm-sdk#readme",
   "devDependencies": {
     "microbundle": "^0.15.1"
   },
