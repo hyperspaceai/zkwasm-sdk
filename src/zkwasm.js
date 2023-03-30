@@ -26,6 +26,10 @@ export class Module {
    * @returns Promise
    */
   async init() {
+    if (this.initialized()) {
+      throw "Module double initialization.";
+    }
+
     if (!(this.binary instanceof Uint8Array)) {
       if (this.binary instanceof ArrayBuffer) {
         this.binary = new Uint8Array(this.binary);
@@ -77,7 +81,7 @@ export class Module {
           return;
         }
         case "result":
-          console.log("result: ", args);
+          // console.log("result: ", args);
           return;
       }
 
@@ -117,10 +121,15 @@ export class Module {
   }
 
   /**
+   * @typedef {{bytes: Uint8Array, inputs: Uint8Array}} Proof
+   * @typedef {{proof: Proof, result: Uint8Array}} InvocationResult
+   */
+
+  /**
    * Invokes an export on the module and returns the result.
    * @param {string} exportName
    * @param {Uint8Array[]} args
-   * @returns {Promise<Uint8Array>}
+   * @returns {Promise<InvocationResult>}
    */
   async invokeExport(exportName, args) {
     if (!this.initialized()) {
@@ -149,6 +158,23 @@ export class Module {
           e.data.action === "invoke_export"
         ) {
           res(e.data.result);
+        }
+      });
+    });
+  }
+
+  /**
+   * Verifies a proof, returns whether it's valid or not.
+   * @param {Proof} proof
+   * @returns {Promise<boolean>}
+   */
+  async verifyProof(proof) {
+    this.worker.postMessage({ action: "verify", args: [proof] });
+
+    return new Promise((res) => {
+      this.worker.addEventListener("message", (e) => {
+        if (e.data.operation === "result" && e.data.action === "verify") {
+          res(e.data.result.result);
         }
       });
     });
