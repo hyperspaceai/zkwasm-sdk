@@ -1,6 +1,10 @@
 # zkWasm SDK
 
-This is the repository for the JavaScript SDK for zkWasm. You can use this library client or server-side as long as the runtime supports `Wasm`, Workers, and IndexedDB.
+This is the repository for the JavaScript SDK for zkWasm. You can use this library client or server-side as long as the runtime supports `Wasm`, Workers, and IndexedDB. To get started, bootstrap an AssemblyScript project with [`create-zkwasm-app`](https://npm.im/create-zkwasm-app):
+
+```shell
+npx create-zkwasm-app your-project-name
+```
 
 # Example
 
