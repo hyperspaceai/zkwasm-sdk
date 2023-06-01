@@ -28,6 +28,7 @@ jobs:
       - run: npm install -g pnpm@7.14.2
       - run: pnpm install
       - run: git status
+      - run: chmod +x ./scripts/check-version.sh && ./scripts/check-version.sh
       - run: pnpm publish --no-git-checks
         env:
           NODE_AUTH_TOKEN: ${{secrets.NPM_TOKEN}}
