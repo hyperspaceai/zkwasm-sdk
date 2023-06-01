@@ -6,6 +6,14 @@ This is the repository for the JavaScript SDK for zkWasm. You can use this libra
 npx create-zkwasm-app your-project-name
 ```
 
+> **Warning**
+> You have to set a couple headers (see below) on your server because of our use of [`SharedArrayBuffer`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/SharedArrayBuffer#security_requirements). This library does not work otherwise.
+
+```
+Cross-Origin-Opener-Policy: same-origin
+Cross-Origin-Embedder-Policy: require-corp
+```
+
 # Example
 
 ```js
