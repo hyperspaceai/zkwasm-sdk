@@ -16,7 +16,7 @@ jobs:
       - run: pnpm install
       - run: pnpm build
 
-  publish-npm:
+  check-version-and-publish:
     needs: build
     runs-on: ubuntu-latest
     steps:
@@ -27,8 +27,10 @@ jobs:
           registry-url: https://registry.npmjs.org/
       - run: npm install -g pnpm@7.14.2
       - run: pnpm install
-      - run: git status
-      - run: chmod +x ./scripts/check-version.sh && ./scripts/check-version.sh
-      - run: pnpm publish --no-git-checks
+      - id: check-version
+        run: chmod +x ./scripts/check-version.sh && ./scripts/check-version.sh
+      - name: Publish
+        if: steps.check-version.outputs.version_updated == 'true'
+        run: pnpm publish --no-git-checks
         env:
           NODE_AUTH_TOKEN: ${{secrets.NPM_TOKEN}}

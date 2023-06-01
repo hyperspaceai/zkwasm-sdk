@@ -1,6 +1,4 @@
 #!/bin/bash
-# Exit if any subcommand fails
-set -e 
 
 # Get the version from package.json
 CURRENT_VERSION=$(node -p "require('./package.json').version")
@@ -14,8 +12,8 @@ MASTER_VERSION=$(git show origin/main:package.json | node -p "JSON.parse(require
 # If the versions are not equal, then it has been updated
 if [ "$CURRENT_VERSION" != "$MASTER_VERSION" ]; then
   echo "Version has been updated."
-  exit 0
+  echo "::set-output name=version_updated::true"
 else
-  echo "Version has not been updated. Please update version before publishing."
-  exit 1
+  echo "Version has not been updated. Skipping publish step."
+  echo "::set-output name=version_updated::false"
 fi
