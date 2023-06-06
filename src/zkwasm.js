@@ -218,6 +218,19 @@ export class JSModule {
   }
 
   /**
+   * Creates and initializes a `JSModule` instance from a path.
+   * @param {string} path
+   * @returns {Promise<JSModule>}
+   */
+  static async fromPath(path) {
+    let res = await fetch(path);
+    let source = await res.text();
+    let mod = new JSModule(source);
+    await mod.init();
+    return mod;
+  }
+
+  /**
    * Returns if this `JSModule` object has been intialized or not.
    * @returns {boolean}
    */

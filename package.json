@@ -1,6 +1,6 @@
 {
   "name": "zkwasm",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "description": "Zero-Knowledge WebAssembly runtime",
   "type": "module",
   "source": "src/zkwasm.js",
