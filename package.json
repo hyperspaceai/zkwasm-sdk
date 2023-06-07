@@ -1,6 +1,6 @@
 {
   "name": "zkwasm",
-  "version": "0.2.3",
+  "version": "0.2.5",
   "description": "Zero-Knowledge WebAssembly runtime",
   "type": "module",
   "source": "src/zkwasm.ts",
@@ -11,6 +11,7 @@
   "main": "./dist/zkwasm.cjs",
   "module": "./dist/zkwasm.module.js",
   "unpkg": "./dist/zkwasm.umd.js",
+  "types": "./dist/zkwasm.d.ts",
   "scripts": {
     "build": "microbundle",
     "prepublish": "npm run build"
