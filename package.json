@@ -1,9 +1,9 @@
 {
   "name": "zkwasm",
-  "version": "0.2.2",
+  "version": "0.2.3",
   "description": "Zero-Knowledge WebAssembly runtime",
   "type": "module",
-  "source": "src/zkwasm.js",
+  "source": "src/zkwasm.ts",
   "exports": {
     "require": "./dist/zkwasm.cjs",
     "default": "./dist/zkwasm.modern.js"

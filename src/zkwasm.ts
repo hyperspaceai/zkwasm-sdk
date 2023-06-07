@@ -11,10 +11,7 @@ async function initDB() {
   });
 }
 
-/**
- * @returns {Promise<Worker>}
- */
-async function initWorker() {
+async function initWorker(): Promise<Worker> {
   let workerRes = await fetch("https://dl.kartikn.com/file/worker.mjs");
   let workerContents = await workerRes.blob();
 
@@ -24,7 +21,7 @@ async function initWorker() {
 
   await new Promise((res) => {
     worker.addEventListener("message", (e) => {
-      if (e.data.operation === "initialized") res();
+      if (e.data.operation === "initialized") res(worker);
     });
   });
 
@@ -42,7 +39,7 @@ async function initWorker() {
 
         i32[0] = value.byteLength;
         const buffer = new Uint8Array(i32.buffer);
-        value.forEach((byte, i) => {
+        value.forEach((byte: number, i: number) => {
           buffer[i + 4] = byte;
         });
 
@@ -68,43 +65,49 @@ async function initWorker() {
   return worker;
 }
 
-/**
- * @typedef {{bytes: Uint8Array, inputs: Uint8Array}} Proof
- */
+export type Proof = {
+  bytes: Uint8Array;
+  inputs: Uint8Array;
+};
+
+export type InvocationResult = {
+  proof: Proof;
+  result: Uint8Array;
+};
 
 export class Module {
+  __internal_module_object: any;
+  binary: Uint8Array;
+  worker?: Worker;
+
   /**
    * Creates a new uninitialized `Module` object.
-   * @param {Uint8Array} binary
    */
-  constructor(binary) {
+  constructor(binary: Uint8Array) {
     this.__internal_module_object = null;
-    this.binary = binary;
+
+    if (binary instanceof ArrayBuffer) {
+      this.binary = new Uint8Array(binary);
+    } else if (!(this.binary instanceof Uint8Array)) {
+      throw "Binary must be `Uint8Array` or `ArrayBuffer`";
+    } else {
+      this.binary = binary;
+    }
   }
 
   /**
    * Initializes the module (preparing it for export invocations).
-   * @returns {Promise}
    */
-  async init() {
+  async init(): Promise<void> {
     if (this.initialized()) {
       throw "Module double initialization.";
     }
 
-    if (!(this.binary instanceof Uint8Array)) {
-      if (this.binary instanceof ArrayBuffer) {
-        this.binary = new Uint8Array(this.binary);
-      } else {
-        throw "Binary must be `Uint8Array` or `ArrayBuffer`";
-      }
-    }
-
     this.worker = await initWorker();
-
     this.worker.postMessage({ action: "init_module", args: [this.binary] });
 
     return new Promise((res) => {
-      this.worker.addEventListener("message", (e) => {
+      this.worker!.addEventListener("message", (e) => {
         if (e.data.operation === "result" && e.data.action === "init_module") {
           this.__internal_module_object = e.data.result;
           res();
@@ -115,39 +118,32 @@ export class Module {
 
   /**
    * Returns if this `Module` object has been intialized or not.
-   * @returns {boolean}
    */
-  initialized() {
+  initialized(): boolean {
     return this.__internal_module_object !== null;
   }
 
   /**
    * Creates a new `Module` from a provided Wasm binary.
-   * @param {Uint8Array} binary
-   * @returns {Promise<Module>}
    */
-  static async fromBinary(binary) {
+  static async fromBinary(binary: Uint8Array): Promise<Module> {
     let result = new Module(binary);
     await result.init();
     return result;
   }
 
   /**
-   * @typedef {{proof: Proof, result: Uint8Array}} InvocationResult
-   */
-
-  /**
    * Invokes an export on the module and returns the result.
-   * @param {string} exportName
-   * @param {Uint8Array[]} args
-   * @returns {Promise<InvocationResult>}
    */
-  async invokeExport(exportName, args) {
+  async invokeExport(
+    exportName: string,
+    args: Uint8Array[]
+  ): Promise<InvocationResult> {
     if (!this.initialized()) {
       throw "Attempt to use uninitialized module.";
     }
 
-    args.forEach((arg, i) => {
+    args.forEach((arg: any, i) => {
       if (!(arg instanceof Uint8Array)) {
         if (arg instanceof ArrayBuffer) {
           args[i] = new Uint8Array(arg);
@@ -157,13 +153,13 @@ export class Module {
       }
     });
 
-    this.worker.postMessage({
+    this.worker!.postMessage({
       action: "invoke_export",
       args: [this.__internal_module_object, exportName, args],
     });
 
     return new Promise((res) => {
-      this.worker.addEventListener("message", (e) => {
+      this.worker!.addEventListener("message", (e) => {
         if (
           e.data.operation === "result" &&
           e.data.action === "invoke_export"
@@ -176,20 +172,21 @@ export class Module {
 }
 
 export class JSModule {
+  _module?: Module;
+  source: string;
+
   /**
    * Creates a new uninitialized `JSModule` object.
-   * @param {string} source
    */
-  constructor(source) {
-    this._module = null;
+  constructor(source: string) {
+    this._module = undefined;
     this.source = source;
   }
 
   /**
    * Initializes the module (preparing it for function invocations).
-   * @returns {Promise}
    */
-  async init() {
+  async init(): Promise<void> {
     if (this.initialized()) {
       throw "JSModule double initialization";
     }
@@ -208,10 +205,8 @@ export class JSModule {
 
   /**
    * Creates and initializes a `JSModule` instance.
-   * @param {string} source
-   * @returns {Promise<JSModule>}
    */
-  static async fromSource(source) {
+  static async fromSource(source: string): Promise<JSModule> {
     let mod = new JSModule(source);
     await mod.init();
     return mod;
@@ -219,10 +214,8 @@ export class JSModule {
 
   /**
    * Creates and initializes a `JSModule` instance from a path.
-   * @param {string} path
-   * @returns {Promise<JSModule>}
    */
-  static async fromPath(path) {
+  static async fromPath(path: string): Promise<JSModule> {
     let res = await fetch(path);
     let source = await res.text();
     let mod = new JSModule(source);
@@ -232,19 +225,18 @@ export class JSModule {
 
   /**
    * Returns if this `JSModule` object has been intialized or not.
-   * @returns {boolean}
    */
-  initialized() {
+  initialized(): boolean {
     return this._module !== null;
   }
 
   /**
    * Call a function within the JS module with your provided arguments.
-   * @param {string} functionName
-   * @param {Uint8Array[]} args
-   * @returns {Promise<InvocationResult>}
    */
-  async call(functionName, args) {
+  async call(
+    functionName: string,
+    args: Uint8Array[]
+  ): Promise<InvocationResult> {
     if (!this.initialized()) {
       throw "Attempt to use uninitialized JS module.";
     }
@@ -267,7 +259,7 @@ export class JSModule {
 
     console.log(args, mergedArgs);
 
-    return await this._module.invokeExport("exec_js", [
+    return await this._module!.invokeExport("exec_js", [
       new TextEncoder().encode(this.source),
       new TextEncoder().encode(functionName),
       mergedArgs,
@@ -277,10 +269,8 @@ export class JSModule {
 
 /**
  * Verifies a proof, returns whether it's valid or not.
- * @param {Proof} proof
- * @returns {Promise<boolean>}
  */
-export async function verify(proof) {
+export async function verify(proof: Proof): Promise<boolean> {
   let worker = await initWorker();
   worker.postMessage({ action: "verify", args: [proof] });
 
