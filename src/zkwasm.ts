@@ -233,22 +233,23 @@ export class JSModule {
   /**
    * Call a function within the JS module with your provided arguments.
    */
-  async call(
-    functionName: string,
-    args: Uint8Array[]
-  ): Promise<InvocationResult> {
+  async call(functionName: string, args: any[]): Promise<InvocationResult> {
     if (!this.initialized()) {
       throw "Attempt to use uninitialized JS module.";
     }
 
-    let allArgsLen = args
+    let argArrays = args.map((value) =>
+      new TextEncoder().encode(JSON.stringify(value))
+    );
+
+    let allArgsLen = argArrays
       .map((arr) => arr.byteLength)
       .reduce((acc, a) => acc + a, 0);
-    let mergedArgs = new Uint8Array(allArgsLen + args.length * 4);
+    let mergedArgs = new Uint8Array(allArgsLen + argArrays.length * 4);
     let dataView = new DataView(mergedArgs.buffer);
 
     let i = 0;
-    args.forEach((arr) => {
+    argArrays.forEach((arr) => {
       dataView.setUint32(i, arr.byteLength, true);
       i += 4;
       for (let j = 0; j < arr.byteLength; j++) {
@@ -257,13 +258,13 @@ export class JSModule {
       i += arr.byteLength;
     });
 
-    console.log(args, mergedArgs);
-
-    return await this._module!.invokeExport("exec_js", [
+    let { proof, result } = await this._module!.invokeExport("exec_js", [
       new TextEncoder().encode(this.source),
       new TextEncoder().encode(functionName),
       mergedArgs,
     ]);
+
+    return { proof, result: JSON.parse(new TextDecoder().decode(result)) };
   }
 }
 
