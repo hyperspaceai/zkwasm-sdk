@@ -1,4 +1,5 @@
 import { openDB } from "idb";
+import Worker from "web-worker";
 
 const DB_NAME = "hysdk";
 const STORE_NAME = "state";
@@ -11,13 +12,20 @@ async function initDB() {
   });
 }
 
-async function initWorker(): Promise<Worker> {
-  let workerRes = await fetch("https://dl.kartikn.com/file/worker.mjs");
-  let workerContents = await workerRes.blob();
+let cachedWorkerContents: string | undefined = undefined;
 
-  let worker = new Worker(URL.createObjectURL(workerContents), {
-    type: "module",
-  });
+async function initWorker(): Promise<Worker> {
+  if (!cachedWorkerContents) {
+    let workerRes = await fetch("https://dl.kartikn.com/file/worker.mjs");
+    cachedWorkerContents = await workerRes.text();
+  }
+
+  let worker = new Worker(
+    `data:application/javascript,${encodeURIComponent(cachedWorkerContents)}`,
+    {
+      type: "module",
+    }
+  );
 
   await new Promise((res) => {
     worker.addEventListener("message", (e) => {
@@ -70,9 +78,8 @@ export type Proof = {
   inputs: Uint8Array;
 };
 
-export type InvocationResult = {
-  proof: Proof;
-  result: Uint8Array;
+export type Options = {
+  includeInternalTimes: boolean;
 };
 
 export class Module {
@@ -88,7 +95,7 @@ export class Module {
 
     if (binary instanceof ArrayBuffer) {
       this.binary = new Uint8Array(binary);
-    } else if (!(this.binary instanceof Uint8Array)) {
+    } else if (!(binary instanceof Uint8Array)) {
       throw "Binary must be `Uint8Array` or `ArrayBuffer`";
     } else {
       this.binary = binary;
@@ -137,8 +144,13 @@ export class Module {
    */
   async invokeExport(
     exportName: string,
-    args: Uint8Array[]
-  ): Promise<InvocationResult> {
+    args: Uint8Array[],
+    opts?: Options
+  ): Promise<{
+    proof: Proof;
+    result: Uint8Array;
+    times?: { proving: BigInt; execution: BigInt };
+  }> {
     if (!this.initialized()) {
       throw "Attempt to use uninitialized module.";
     }
@@ -164,10 +176,31 @@ export class Module {
           e.data.operation === "result" &&
           e.data.action === "invoke_export"
         ) {
-          res(e.data.result);
+          if (opts && opts.includeInternalTimes) {
+            res({
+              proof: e.data.result.proof,
+              result: e.data.result.result,
+              times: {
+                proving: e.data.result.proving_time,
+                execution: e.data.result.execution_time,
+              },
+            });
+          } else {
+            res({ proof: e.data.result.proof, result: e.data.result.result });
+          }
         }
       });
     });
+  }
+
+  /**
+   * Terminates the background `Worker` that the Wasm is running in. You usually
+   * shouldn't have to do this manually but it can become relevant if you're running
+   * server-side or if you need to save resources while exeucting multiple modules
+   * on the same page.
+   */
+  destroy() {
+    this.worker?.terminate();
   }
 }
 
@@ -227,13 +260,21 @@ export class JSModule {
    * Returns if this `JSModule` object has been intialized or not.
    */
   initialized(): boolean {
-    return this._module !== null;
+    return this._module !== undefined;
   }
 
   /**
    * Call a function within the JS module with your provided arguments.
    */
-  async call(functionName: string, args: any[]): Promise<InvocationResult> {
+  async call(
+    functionName: string,
+    args: any[],
+    opts?: Options
+  ): Promise<{
+    proof: Proof;
+    result: any;
+    times?: { proving: BigInt; execution: BigInt };
+  }> {
     if (!this.initialized()) {
       throw "Attempt to use uninitialized JS module.";
     }
@@ -258,27 +299,62 @@ export class JSModule {
       i += arr.byteLength;
     });
 
-    let { proof, result } = await this._module!.invokeExport("exec_js", [
-      new TextEncoder().encode(this.source),
-      new TextEncoder().encode(functionName),
-      mergedArgs,
-    ]);
+    let invocationResult = await this._module!.invokeExport(
+      "exec_js",
+      [
+        new TextEncoder().encode(this.source),
+        new TextEncoder().encode(functionName),
+        mergedArgs,
+      ],
+      opts
+    );
 
-    return { proof, result: JSON.parse(new TextDecoder().decode(result)) };
+    let result: {
+      proof: Proof;
+      result: any;
+      times?: { proving: BigInt; execution: BigInt };
+    } = {
+      proof: invocationResult.proof,
+      result: JSON.parse(new TextDecoder().decode(invocationResult.result)),
+    };
+
+    if (opts && opts.includeInternalTimes) {
+      result.times = invocationResult.times;
+    }
+
+    return result;
+  }
+
+  /**
+   * See `Module.destroy`.
+   */
+  destroy() {
+    this._module?.destroy();
   }
 }
 
 /**
  * Verifies a proof, returns whether it's valid or not.
  */
-export async function verify(proof: Proof): Promise<boolean> {
+export async function verify(
+  proof: Proof,
+  opts?: Options
+): Promise<boolean | { result: boolean; timeTaken: BigInt }> {
   let worker = await initWorker();
   worker.postMessage({ action: "verify", args: [proof] });
 
   return new Promise((res) => {
     worker.addEventListener("message", (e) => {
       if (e.data.operation === "result" && e.data.action === "verify") {
-        res(e.data.result.result);
+        worker.terminate();
+        if (opts && opts.includeInternalTimes) {
+          res({
+            result: e.data.result.result,
+            timeTaken: e.data.result.time_taken,
+          });
+        } else {
+          res(e.data.result.result);
+        }
       }
     });
   });
