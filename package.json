@@ -1,20 +1,20 @@
 {
   "name": "zkwasm",
-  "version": "0.2.5",
+  "version": "0.2.8",
   "description": "Zero-Knowledge WebAssembly runtime",
-  "type": "module",
   "source": "src/zkwasm.ts",
   "exports": {
-    "require": "./dist/zkwasm.cjs",
+    "require": "./dist/zkwasm.js",
     "default": "./dist/zkwasm.modern.js"
   },
-  "main": "./dist/zkwasm.cjs",
+  "main": "./dist/zkwasm.js",
   "module": "./dist/zkwasm.module.js",
   "unpkg": "./dist/zkwasm.umd.js",
   "types": "./dist/zkwasm.d.ts",
   "scripts": {
     "build": "microbundle",
-    "prepublish": "npm run build"
+    "prepublish": "npm run build",
+    "test": "jest"
   },
   "repository": {
     "type": "git",
@@ -25,9 +25,11 @@
   },
   "homepage": "https://github.com/hyperspaceinc/zkwasm-sdk#readme",
   "devDependencies": {
+    "jest": "^29.5.0",
     "microbundle": "^0.15.1"
   },
   "dependencies": {
-    "idb": "^7.1.1"
+    "idb": "^7.1.1",
+    "web-worker": "^1.2.0"
   }
 }
